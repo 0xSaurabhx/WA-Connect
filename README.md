@@ -1,4 +1,4 @@
-# WhatsApp API Server
+# WA-Connect -  WhatsApp API Server
 
 A powerful Express.js API for sending WhatsApp messages using QR-based authentication. This project uses `whatsapp-web.js` to interact with WhatsApp Web and provides a clean REST API interface.
 
