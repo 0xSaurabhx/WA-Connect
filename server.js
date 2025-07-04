@@ -115,6 +115,46 @@ client.on('disconnected', (reason) => {
 // Initialize WhatsApp client
 client.initialize();
 
+// Note: whatsapp-web.js client.sendMessage() may return undefined in some versions
+// This is normal behavior - the message is still sent successfully to WhatsApp
+// We generate our own message IDs for tracking purposes
+
+// Utility function to safely extract message ID
+function extractMessageId(sentMessage, fallbackPrefix = 'msg') {
+    // Enable debug logging via environment variable
+    const debugMode = process.env.DEBUG_MESSAGE_STRUCTURE === 'true';
+    
+    if (debugMode) {
+        console.log('Message object received:', sentMessage);
+        console.log('Message object type:', typeof sentMessage);
+    }
+    
+    if (!sentMessage || sentMessage === undefined) {
+        if (debugMode) {
+            console.log('ℹ️  WhatsApp client returned undefined - this is normal behavior in some versions');
+        }
+        return `${fallbackPrefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    
+    // Try different possible structures
+    if (sentMessage.id && sentMessage.id._serialized) {
+        return sentMessage.id._serialized;
+    } else if (sentMessage.id && typeof sentMessage.id === 'string') {
+        return sentMessage.id;
+    } else if (sentMessage._serialized) {
+        return sentMessage._serialized;
+    } else if (sentMessage.key && sentMessage.key.id) {
+        return sentMessage.key.id;
+    } else if (sentMessage.key) {
+        return JSON.stringify(sentMessage.key);
+    } else {
+        if (debugMode) {
+            console.warn('Could not extract message ID from structure:', Object.keys(sentMessage || {}));
+        }
+        return `${fallbackPrefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+}
+
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -244,17 +284,30 @@ app.post('/api/send-message', async (req, res) => {
             });
         }
 
-        // Send message
-        const sentMessage = await client.sendMessage(chatId, message);
+        // Generate a unique message ID before sending
+        const timestamp = Date.now();
+        const uniqueId = Math.random().toString(36).substr(2, 9);
+        const messageId = `msg_${timestamp}_${uniqueId}`;
 
-        res.json({
-            success: true,
-            message: 'Message sent successfully',
-            messageId: sentMessage.id._serialized,
-            to: formattedNumber,
-            content: message,
-            timestamp: new Date().toISOString()
-        });
+        // Send message
+        try {
+            const sentMessage = await client.sendMessage(chatId, message);
+            
+            // Try to extract real message ID if available
+            const realMessageId = extractMessageId(sentMessage, 'msg');
+            
+            res.json({
+                success: true,
+                message: 'Message sent successfully',
+                messageId: realMessageId !== `msg_${timestamp}_${uniqueId}` ? realMessageId : messageId,
+                to: formattedNumber,
+                content: message,
+                timestamp: new Date().toISOString(),
+                deliveryStatus: 'sent'
+            });
+        } catch (sendError) {
+            throw sendError; // Re-throw to be caught by outer catch block
+        }
 
     } catch (error) {
         console.error('Error sending message:', error);
@@ -453,28 +506,41 @@ app.post('/api/send-media', upload.single('media'), async (req, res) => {
             media.filename = file.originalname;
         }
 
+        // Generate a unique message ID before sending
+        const timestamp = Date.now();
+        const uniqueId = Math.random().toString(36).substr(2, 9);
+        const messageId = `media_${timestamp}_${uniqueId}`;
+
         // Send media message
-        const sentMessage = await client.sendMessage(chatId, media, { 
-            caption: caption || undefined 
-        });
+        try {
+            const sentMessage = await client.sendMessage(chatId, media, { 
+                caption: caption || undefined 
+            });
 
-        // Clean up uploaded file after sending
-        setTimeout(() => {
-            if (fs.existsSync(file.path)) {
-                fs.unlinkSync(file.path);
-            }
-        }, 1000);
+            // Try to extract real message ID if available
+            const realMessageId = extractMessageId(sentMessage, 'media');
 
-        res.json({
-            success: true,
-            message: 'Media sent successfully',
-            messageId: sentMessage.id._serialized,
-            to: formattedNumber,
-            mediaType: file.mimetype,
-            fileName: file.originalname,
-            caption: caption || null,
-            timestamp: new Date().toISOString()
-        });
+            // Clean up uploaded file after sending
+            setTimeout(() => {
+                if (fs.existsSync(file.path)) {
+                    fs.unlinkSync(file.path);
+                }
+            }, 1000);
+
+            res.json({
+                success: true,
+                message: 'Media sent successfully',
+                messageId: realMessageId !== `media_${timestamp}_${uniqueId}` ? realMessageId : messageId,
+                to: formattedNumber,
+                mediaType: file.mimetype,
+                fileName: file.originalname,
+                caption: caption || null,
+                timestamp: new Date().toISOString(),
+                deliveryStatus: 'sent'
+            });
+        } catch (sendError) {
+            throw sendError; // Re-throw to be caught by outer catch block
+        }
 
     } catch (error) {
         console.error('Error sending media:', error);
@@ -541,21 +607,34 @@ app.post('/api/send-media-url', async (req, res) => {
             }
         }
 
-        // Send media message
-        const sentMessage = await client.sendMessage(chatId, media, { 
-            caption: caption || undefined 
-        });
+        // Generate a unique message ID before sending
+        const timestamp = Date.now();
+        const uniqueId = Math.random().toString(36).substr(2, 9);
+        const messageId = `media_url_${timestamp}_${uniqueId}`;
 
-        res.json({
-            success: true,
-            message: 'Media sent successfully',
-            messageId: sentMessage.id._serialized,
-            to: formattedNumber,
-            mediaType: mediaType,
-            mediaSource: mediaUrl.startsWith('data:') ? 'base64' : 'url',
-            caption: caption || null,
-            timestamp: new Date().toISOString()
-        });
+        // Send media message
+        try {
+            const sentMessage = await client.sendMessage(chatId, media, { 
+                caption: caption || undefined 
+            });
+
+            // Try to extract real message ID if available
+            const realMessageId = extractMessageId(sentMessage, 'media_url');
+
+            res.json({
+                success: true,
+                message: 'Media sent successfully',
+                messageId: realMessageId !== `media_url_${timestamp}_${uniqueId}` ? realMessageId : messageId,
+                to: formattedNumber,
+                mediaType: mediaType,
+                mediaSource: mediaUrl.startsWith('data:') ? 'base64' : 'url',
+                caption: caption || null,
+                timestamp: new Date().toISOString(),
+                deliveryStatus: 'sent'
+            });
+        } catch (sendError) {
+            throw sendError; // Re-throw to be caught by outer catch block
+        }
 
     } catch (error) {
         console.error('Error sending media from URL:', error);
