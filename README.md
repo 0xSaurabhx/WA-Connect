@@ -1,129 +1,332 @@
-# WA-Connect -  WhatsApp API Server
+# WhatsApp API Server 📱
 
-A powerful Express.js API for sending WhatsApp messages using QR-based authentication. This project uses `whatsapp-web.js` to interact with WhatsApp Web and provides a clean REST API interface.
+A robust, production-ready multi-session WhatsApp API server built with Express.js and whatsapp-web.js. Supports unlimited WhatsApp numbers, dynamic session management, and multiple deployment options.
 
-## Features
+## 🚀 Features
 
-- 🔐 **QR-based Authentication** - Secure login using WhatsApp QR code
-- 📱 **Send Messages** - Send text messages to any WhatsApp number
-- 📎 **Send Media** - Send images, PDFs, documents, audio, and video files
-- 🌐 **Web Dashboard** - Beautiful web interface for easy testing
-- 📊 **Status Monitoring** - Real-time connection status
-- 🔄 **Auto-reconnection** - Handles disconnections gracefully
-- 🛡️ **Input Validation** - Validates phone numbers and messages
-- 📚 **API Documentation** - Complete API reference
-- 💾 **Session Persistence** - Maintains authentication across restarts
+- **Multi-Session Support**: Manage unlimited WhatsApp numbers
+- **Dynamic Session Management**: Add/remove sessions via API
+- **QR Code Authentication**: Web-based QR scanning
+- **Message Types**: Text and media messages (images, documents, audio, video)
+- **Persistence Options**: SQLite database or JSON file storage
+- **Web Dashboard**: Modern UI for session and message management
+- **Production Ready**: Docker support, PM2 configuration, load balancing
+- **Multiple Deployment Options**: Local, Docker, Digital Ocean, Vercel
 
-## Quick Start
+## 📋 Table of Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Server Variants](#server-variants)
+- [API Documentation](#api-documentation)
+- [Web Dashboard](#web-dashboard)
+- [Deployment](#deployment)
+- [Environment Variables](#environment-variables)
+- [Troubleshooting](#troubleshooting)
+
+## 🛠️ Installation
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
+- Node.js 18+ (for SQLite version) or Node.js 16+ (for simple version)
 - npm or yarn
+- Linux/macOS (recommended) or Windows
 
-### Installation
+### Clone Repository
 
-1. **Clone or download the project**
-   ```bash
-   cd WA-AUTO
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Start the server**
-   ```bash
-   npm start
-   ```
-
-   For development with auto-reload:
-   ```bash
-   npm run dev
-   ```
-
-   To see all warnings (including deprecation warnings):
-   ```bash
-   npm run start-verbose
-   # or
-   npm run dev-verbose
-   ```
-
-4. **Open the dashboard**
-   ```
-   http://localhost:3000
-   ```
-
-## Usage
-
-### 1. Authentication
-
-1. Start the server
-2. **The QR code will automatically appear in your terminal/console**
-3. Scan the QR code with WhatsApp on your phone
-4. Wait for authentication and ready status
-
-**Note**: The QR code is displayed directly in the terminal for convenience. You can also visit the web dashboard at `http://localhost:3000` for a backup QR code if needed.
-
-### 2. Send Messages
-
-#### Via Web Dashboard
-1. Ensure you're authenticated and ready
-2. Enter phone number (with or without country code)
-3. Type your message
-4. Click "Send Message"
-
-#### Via API (cURL)
 ```bash
-# Send text message
-curl -X POST http://localhost:3000/api/send-message \
-  -H "Content-Type: application/json" \
-  -d '{
-    "number": "9876543210",
-    "message": "Hello from WhatsApp API!"
-  }'
-
-# Send media file
-curl -X POST http://localhost:3000/api/send-media \
-  -F "number=9876543210" \
-  -F "caption=Check this out!" \
-  -F "media=@/path/to/your/file.pdf"
+git clone <your-repo-url>
+cd WA-AUTO
+npm install
 ```
 
-#### Via API (JavaScript)
-```javascript
-// Send text message
-const response = await fetch('http://localhost:3000/api/send-message', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    number: '9876543210',
-    message: 'Hello from WhatsApp API!'
-  })
-});
+## 🎯 Quick Start
 
-// Send media file
-const formData = new FormData();
-formData.append('number', '9876543210');
-formData.append('caption', 'Check this document!');
-formData.append('media', fileInput.files[0]);
+### Option 1: SQLite-based Server (Recommended)
 
-const mediaResponse = await fetch('http://localhost:3000/api/send-media', {
-  method: 'POST',
-  body: formData
-});
+```bash
+# Start SQLite-based server with persistence
+node server-sqlite.js
 
-const result = await response.json();
-console.log(result);
+# Access dashboard at http://localhost:3000
 ```
 
-## API Endpoints
+### Option 2: Simple File-based Server
 
-### `GET /api/status`
-Check the connection status of WhatsApp client.
+```bash
+# Start simple file-based server (Node.js 16+ compatible)
+node server-simple.js
+
+# Access dashboard at http://localhost:3001
+```
+
+### Option 3: Static Multi-session Server
+
+```bash
+# Start with predefined sessions
+node server-multi.js
+
+# Access dashboard at http://localhost:3002
+```
+
+### Option 4: Original Single Session Server
+
+```bash
+# Start original single session server
+node server.js
+
+# Access dashboard at http://localhost:3000
+```
+
+## 🔧 Server Variants
+
+| Server File | Storage | Node.js | Features |
+|-------------|---------|---------|----------|
+| `server-sqlite.js` | SQLite Database | 18+ | Full API, unlimited sessions, persistence |
+| `server-simple.js` | JSON Files | 16+ | Full API, file-based storage |
+| `server-multi.js` | Memory | 16+ | Static sessions, web dashboard |
+| `server.js` | Memory | 16+ | Single session, basic API |
+
+## 📚 API Documentation
+
+### Base URL
+```
+http://localhost:3000
+```
+
+### Authentication
+No authentication required for local deployment. For production, implement authentication middleware.
+
+---
+
+## 🔗 Session Management APIs
+
+### 1. Get All Sessions
+```http
+GET /api/sessions
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "sessions": [
+    {
+      "id": "whatsapp1",
+      "name": "Primary WhatsApp",
+      "description": "Main business account",
+      "phone": "1234567890",
+      "ready": true,
+      "authenticated": true,
+      "status": "ready",
+      "created_at": "2025-07-08T10:00:00.000Z",
+      "connected_at": "2025-07-08T10:05:00.000Z"
+    }
+  ]
+}
+```
+
+### 2. Create New Session
+```http
+POST /api/sessions
+Content-Type: application/json
+
+{
+  "sessionId": "whatsapp2",
+  "sessionName": "Secondary WhatsApp",
+  "description": "Customer support account"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Session created successfully",
+  "sessionId": "whatsapp2"
+}
+```
+
+### 3. Bulk Create Sessions
+```http
+POST /api/sessions/bulk
+Content-Type: application/json
+
+{
+  "sessions": [
+    {
+      "sessionId": "wa1",
+      "sessionName": "WhatsApp 1",
+      "description": "Sales team"
+    },
+    {
+      "sessionId": "wa2",
+      "sessionName": "WhatsApp 2",
+      "description": "Support team"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Created 2 sessions successfully",
+  "created": ["wa1", "wa2"],
+  "failed": []
+}
+```
+
+### 4. Initialize Session
+```http
+POST /api/sessions/{sessionId}/initialize
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Session initialization started"
+}
+```
+
+### 5. Get QR Code
+```http
+GET /api/sessions/{sessionId}/qr
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+  "message": "QR code ready for scanning"
+}
+```
+
+### 6. Logout Session
+```http
+POST /api/sessions/{sessionId}/logout
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Session logged out successfully"
+}
+```
+
+### 7. Delete Session
+```http
+DELETE /api/sessions/{sessionId}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Session deleted successfully"
+}
+```
+
+---
+
+## 💬 Messaging APIs
+
+### 1. Send Text Message
+```http
+POST /api/send
+Content-Type: application/json
+
+{
+  "to": "1234567890",
+  "message": "Hello from WhatsApp API!",
+  "sessionId": "whatsapp1"
+}
+```
+
+**Parameters:**
+- `to` (required): Phone number (with or without country code)
+- `message` (required): Text message content
+- `sessionId` (optional): Specific session ID. If not provided, uses round-robin selection
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Message sent successfully",
+  "sessionId": "whatsapp1",
+  "sessionName": "Primary WhatsApp",
+  "fromPhone": "1234567890",
+  "messageId": "msg_12345"
+}
+```
+
+### 2. Send Media Message
+```http
+POST /api/send-media
+Content-Type: multipart/form-data
+
+to: 1234567890
+media: [file]
+caption: Optional caption text
+sessionId: whatsapp1
+```
+
+**Parameters:**
+- `to` (required): Phone number
+- `media` (required): File upload (images, documents, audio, video)
+- `caption` (optional): Media caption
+- `sessionId` (optional): Specific session ID
+
+**Supported File Types:**
+- Images: JPG, PNG, GIF, WebP
+- Documents: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV
+- Audio: MP3, WAV, OGG, M4A
+- Video: MP4, AVI, MOV, WebM
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Media sent successfully",
+  "sessionId": "whatsapp1",
+  "sessionName": "Primary WhatsApp",
+  "fromPhone": "1234567890",
+  "mediaType": "image",
+  "fileName": "photo.jpg"
+}
+```
+
+### 3. Original Single Session APIs (server.js)
+
+#### Send Message (Original API)
+```http
+POST /api/send-message
+Content-Type: application/json
+
+{
+  "number": "9876543210",
+  "message": "Hello from WhatsApp API!"
+}
+```
+
+#### Send Media (Original API)
+```http
+POST /api/send-media
+Content-Type: multipart/form-data
+
+number: 9876543210
+caption: Check this out!
+media: [file]
+```
+
+#### Get Status
+```http
+GET /api/status
+```
 
 **Response:**
 ```json
@@ -134,8 +337,10 @@ Check the connection status of WhatsApp client.
 }
 ```
 
-### `GET /api/qr`
-Get QR code for WhatsApp authentication.
+#### Get QR Code (Original)
+```http
+GET /api/qr
+```
 
 **Response:**
 ```json
@@ -145,66 +350,83 @@ Get QR code for WhatsApp authentication.
 }
 ```
 
-### `POST /api/send-message`
-Send a WhatsApp message.
+---
 
-**Request Body:**
-```json
-{
-  "number": "9876543210",
-  "message": "Your message here"
-}
+## 📊 Statistics & Information APIs
+
+### 1. Get Server Statistics
+```http
+GET /api/stats
 ```
 
 **Response:**
 ```json
 {
   "success": true,
-  "message": "Message sent successfully",
-  "messageId": "3EB0C767D95D5B2E1A1E",
-  "to": "919876543210",
-  "content": "Your message here",
-  "timestamp": "2025-06-26T10:30:00.000Z"
+  "stats": {
+    "totalSessions": 5,
+    "readySessions": 3,
+    "authenticatedSessions": 4,
+    "totalMessages": 150,
+    "activeClients": 3,
+    "databaseSize": 2048,
+    "uptime": "2 hours 30 minutes"
+  }
 }
 ```
 
-### `POST /api/send-media`
-Send media files (images, PDFs, documents, audio, video).
+### 2. Get Recent Messages
+```http
+GET /api/messages?limit=20&offset=0
+```
 
-**Request Body (multipart/form-data):**
-- `number`: Phone number
-- `media`: File to upload
-- `caption`: Optional caption for the media
+**Parameters:**
+- `limit` (optional): Number of messages to retrieve (default: 20)
+- `offset` (optional): Number of messages to skip (default: 0)
 
 **Response:**
 ```json
 {
   "success": true,
-  "message": "Media sent successfully",
-  "messageId": "3EB0C767D95D5B2E1A1E",
-  "to": "919876543210",
-  "mediaType": "application/pdf",
-  "fileName": "document.pdf",
-  "caption": "Important document",
-  "timestamp": "2025-06-26T10:30:00.000Z"
+  "messages": [
+    {
+      "id": 1,
+      "session_id": "whatsapp1",
+      "to_number": "1234567890",
+      "content": "Hello World",
+      "media_type": null,
+      "file_name": null,
+      "timestamp": "2025-07-08T10:30:00.000Z"
+    }
+  ],
+  "total": 150
 }
 ```
 
-### `GET /api/media-types`
-Get supported media types and file size limits.
+### 3. Health Check
+```http
+GET /api/health
+```
 
-## Supported Media Types
+**Response:**
+```json
+{
+  "success": true,
+  "status": "healthy",
+  "timestamp": "2025-07-08T10:00:00.000Z",
+  "version": "1.0.0"
+}
+```
 
-- **Images**: JPEG, PNG, GIF, WebP
-- **Documents**: PDF, Word, Excel, PowerPoint, TXT, CSV
-- **Audio**: MP3, WAV, OGG
-- **Video**: MP4, AVI, MOV, WMV
-- **File Size Limit**: 16MB
+### 4. Get Media Types (Original API)
+```http
+GET /api/media-types
+```
 
-For detailed media sending guide, see [MEDIA_GUIDE.md](MEDIA_GUIDE.md)
-
-### `GET /api/chat-info/:number`
-Get information about a contact.
+### 5. Get Chat Info (Original API)
+```http
+GET /api/chat-info/:number
+```
 
 **Response:**
 ```json
@@ -221,154 +443,275 @@ Get information about a contact.
 }
 ```
 
-### `POST /api/logout`
-Logout from WhatsApp.
+---
 
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Logged out successfully"
-}
+## 🌐 Web Dashboard
+
+Access the web dashboard at:
+- SQLite Server: `http://localhost:3000`
+- Simple Server: `http://localhost:3001`
+- Multi Server: `http://localhost:3002`
+- Original Server: `http://localhost:3000`
+
+### Dashboard Features:
+- **Session Management**: Create, initialize, and delete sessions
+- **QR Code Display**: Modal popup for easy scanning
+- **Message Sending**: Text and media message forms
+- **Real-time Stats**: Live session and message statistics
+- **Bulk Operations**: Create multiple sessions at once
+- **Auto-refresh**: Updates every 10 seconds
+
+---
+
+## 🚀 Deployment
+
+### Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start SQLite server
+node server-sqlite.js
+
+# Start simple server (for older Node.js)
+node server-simple.js
 ```
 
-## Session Management
+### Docker Deployment
 
-### Session Persistence
-- ✅ **Persistent Sessions**: Once authenticated, your session remains active indefinitely
-- 🔄 **Survives Restarts**: Authentication is saved locally and restored when you restart the server
-- 📁 **Local Storage**: Session data is stored in `.wwebjs_auth/` directory
-- 🚫 **No Re-auth Needed**: You won't need to scan QR code again unless you logout or clear session
+#### Development
+```bash
+docker-compose up -d
+```
 
-### Session Endpoints
-- `GET /api/session-info` - Get detailed session information
-- `POST /api/clear-session` - Clear saved session (forces re-authentication)
+#### Production
+```bash
+docker-compose -f docker-compose.production.yml up -d
+```
 
-For detailed session management, see [SESSION_MANAGEMENT.md](SESSION_MANAGEMENT.md)
+### Digital Ocean Droplet
 
-## Phone Number Format
+For Node.js v16 (your current version), use the simple server:
 
-The API accepts phone numbers in various formats:
+```bash
+# Clone repository
+git clone <your-repo-url>
+cd WA-AUTO
 
-- `9876543210` (10-digit Indian number)
-- `919876543210` (with country code)
-- `+919876543210` (with + sign)
+# Install dependencies
+npm install
 
-For non-Indian numbers, include the country code:
-- `12345678900` (US number with country code)
-- `447123456789` (UK number with country code)
+# Start simple server (compatible with Node.js 16+)
+node server-simple.js
+```
 
-## Configuration
+### PM2 Process Manager
 
-### Environment Variables
+```bash
+# Install PM2
+npm install -g pm2
 
-Create a `.env` file in the root directory:
+# Start simple server with PM2
+pm2 start server-simple.js --name "whatsapp-api"
+
+# Save PM2 configuration
+pm2 save
+pm2 startup
+```
+
+---
+
+## 🔧 Environment Variables
+
+Create a `.env` file in the project root:
 
 ```env
+# Server Configuration
 PORT=3000
+NODE_ENV=production
+
+# Database (SQLite only)
+DB_PATH=./whatsapp.db
+
+# Sessions (Simple server only)
+SESSIONS_FILE=./sessions.json
+MESSAGES_FILE=./messages.json
+
+# WhatsApp Configuration
+WHATSAPP_SESSION_PATH=./.wwebjs_auth
+WHATSAPP_CACHE_PATH=./.wwebjs_cache
+
+# Security (for production)
+SESSION_SECRET=your-secret-key-here
+API_KEY=your-api-key-here
+
+# CORS Settings
+CORS_ORIGIN=*
+
+# File Upload Limits
+MAX_FILE_SIZE=50MB
+UPLOAD_DIR=./uploads
+
+# Default Country Code (for original server)
 DEFAULT_COUNTRY_CODE=91
 ```
 
-### Default Country Code
+---
 
-By default, the API assumes Indian phone numbers (+91). For 10-digit numbers without a country code, it automatically adds the Indian country code.
-
-To change the default country code, modify the server.js file or use environment variables.
-
-## Error Handling
-
-The API provides detailed error messages for common issues:
-
-- **Invalid phone number**: Number format validation
-- **Unregistered number**: Number not found on WhatsApp
-- **Not authenticated**: Client not logged in to WhatsApp
-- **Client not ready**: WhatsApp client is connecting
-- **Rate limiting**: WhatsApp Web rate limits
-
-## Security Considerations
-
-- The QR code provides full access to your WhatsApp account
-- Run the server on a secure network
-- Use environment variables for sensitive configuration
-- Implement authentication for production use
-- Monitor rate limits to avoid being blocked
-
-## Troubleshooting
+## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **QR code not appearing**
-   - Wait a few seconds after starting the server
-   - Check console logs for errors
-   - Restart the server
+#### 1. Node.js Version Compatibility (Your Current Issue)
 
-2. **Authentication fails**
-   - Make sure you scan the QR code quickly
-   - Ensure your phone has internet connection
-   - Try logging out and scanning again
+Your Digital Ocean droplet has Node.js v16.16.0, but `better-sqlite3` requires Node.js 20+. **Solution**: Use the simple server instead:
 
-3. **Messages not sending**
-   - Verify the phone number format
-   - Check if the number is registered on WhatsApp
-   - Ensure you're authenticated and ready
+```bash
+# Instead of server-sqlite.js, use:
+node server-simple.js
 
-4. **Puppeteer errors**
-   - Install missing dependencies: `sudo apt-get install -y gconf-service libasound2-dev libatk1.0-dev libc6-dev libcairo2-dev libcups2-dev libdbus-1-dev libexpat1-dev libfontconfig1-dev libgcc1 libgconf-2-4 libgdk-pixbuf2.0-dev libglib2.0-dev libgtk-3-dev libnspr4-dev libpango-1.0-dev libpangocairo-1.0-dev libstdc++6 libx11-dev libx11-xcb-dev libxcb1-dev libxcomposite-dev libxcursor-dev libxdamage-dev libxext-dev libxfixes-dev libxi-dev libxrandr-dev libxrender-dev libxss-dev libxtst-dev ca-certificates fonts-liberation libappindicator1 libnss3-dev lsb-release xdg-utils wget`
-
-5. **Deprecation warnings**
-   - The default `npm start` suppresses deprecation warnings for cleaner output
-   - To see all warnings use `npm run start-verbose`
-   - These warnings come from library dependencies and don't affect functionality
-
-### Logs
-
-Check the console output for detailed logs:
-- QR code generation status
-- Authentication events
-- Message sending results
-- Error details
-
-## Development
-
-### Project Structure
-
-```
-WA-AUTO/
-├── server.js          # Main Express.js server
-├── package.json       # Dependencies and scripts
-├── .env              # Environment variables
-├── public/
-│   └── index.html    # Web dashboard
-└── README.md         # This file
+# This works with Node.js 16+ and uses JSON files for storage
 ```
 
-### Adding Features
+#### 2. SQLite Installation Issues
 
-The codebase is modular and easy to extend:
+If you get SQLite build errors:
+```bash
+# Use the simple server instead
+node server-simple.js
 
-- Add new API endpoints in `server.js`
-- Modify the web interface in `public/index.html`
-- Extend WhatsApp functionality using `whatsapp-web.js` features
+# Or upgrade Node.js to 20+
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
 
-## Contributing
+#### 3. WhatsApp Connection Issues
+- Ensure phone has stable internet connection
+- Make sure WhatsApp Web is not active on other devices
+- Try refreshing QR code if it expires
+- Check firewall settings for port access
+
+#### 4. File Upload Issues
+- Check file size limits (default: 50MB)
+- Verify file type is supported
+- Ensure uploads directory exists and is writable
+
+#### 5. Puppeteer/Chrome Issues
+```bash
+# Install missing dependencies on Linux
+sudo apt-get install -y gconf-service libasound2-dev libatk1.0-dev libc6-dev libcairo2-dev libcups2-dev libdbus-1-dev libexpat1-dev libfontconfig1-dev libgcc1 libgconf-2-4 libgdk-pixbuf2.0-dev libglib2.0-dev libgtk-3-dev libnspr4-dev libpango-1.0-dev libpangocairo-1.0-dev libstdc++6 libx11-dev libx11-xcb-dev libxcomposite-dev libxcursor-dev libxdamage-dev libxext-dev libxfixes-dev libxi-dev libxrandr-dev libxrender-dev libxss-dev libxtst-dev ca-certificates fonts-liberation libappindicator1 libnss3-dev lsb-release xdg-utils wget
+```
+
+### Error Codes
+
+| Code | Description | Solution |
+|------|-------------|----------|
+| 1001 | Session not found | Create session first |
+| 1002 | Session not ready | Initialize and scan QR code |
+| 1003 | Invalid phone number | Use format: 1234567890 or +911234567890 |
+| 1004 | File too large | Reduce file size or increase limit |
+| 1005 | Database error | Check database permissions |
+| EBADENGINE | Node.js version incompatible | Use server-simple.js for Node.js 16+ |
+
+---
+
+## 📝 API Response Format
+
+All API responses follow this standard format:
+
+### Success Response
+```json
+{
+  "success": true,
+  "message": "Operation completed successfully",
+  "data": {},
+  "timestamp": "2025-07-08T10:00:00.000Z"
+}
+```
+
+### Error Response
+```json
+{
+  "success": false,
+  "error": "Error description",
+  "code": 1001,
+  "timestamp": "2025-07-08T10:00:00.000Z"
+}
+```
+
+---
+
+## 🔐 Security Considerations
+
+### For Production Use:
+
+1. **Enable Authentication**:
+```javascript
+// Add API key middleware
+app.use('/api', (req, res, next) => {
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey !== process.env.API_KEY) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+  next();
+});
+```
+
+2. **Configure CORS**:
+```javascript
+app.use(cors({
+  origin: ['https://yourdomain.com'],
+  credentials: true
+}));
+```
+
+3. **Rate Limiting**:
+```javascript
+const rateLimit = require('express-rate-limit');
+app.use('/api/send', rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+}));
+```
+
+4. **HTTPS**: Always use HTTPS in production
+
+---
+
+## 📞 Support
+
+For issues and questions:
+1. Check the troubleshooting section above
+2. Review server logs: `pm2 logs` or `docker logs`
+3. Create an issue in the repository
+4. Check WhatsApp Web.js documentation
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License. See LICENSE file for details.
+
+---
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test thoroughly
+4. Add tests if applicable
 5. Submit a pull request
-
-## License
-
-MIT License - feel free to use this project for personal or commercial purposes.
-
-## Support
-
-For issues and questions:
-1. Check the troubleshooting section
-2. Review the console logs
-3. Open an issue with detailed information
 
 ---
 
-**⚠️ Disclaimer**: This project is for educational and personal use. Make sure to comply with WhatsApp's Terms of Service and avoid spam or abuse.
+## 📚 Additional Resources
+
+- [WhatsApp Web.js Documentation](https://wwebjs.dev/)
+- [Express.js Documentation](https://expressjs.com/)
+- [PM2 Documentation](https://pm2.keymetrics.io/)
+- [Docker Documentation](https://docs.docker.com/)
+
+---
+
+**Happy messaging! 🎉**
