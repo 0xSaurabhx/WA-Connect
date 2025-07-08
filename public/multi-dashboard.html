@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Session WhatsApp API Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #25D366;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .sessions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .session-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .session-card.ready {
+            border-color: #25D366;
+        }
+
+        .session-card.pending {
+            border-color: #ffa500;
+        }
+
+        .session-card.error {
+            border-color: #ff4444;
+        }
+
+        .session-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .session-status {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-ready {
+            background: #25D366;
+            color: white;
+        }
+
+        .status-pending {
+            background: #ffa500;
+            color: white;
+        }
+
+        .status-error {
+            background: #ff4444;
+            color: white;
+        }
+
+        .qr-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .qr-container img {
+            max-width: 200px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .session-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .session-info div {
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .session-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #25D366;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #ff4444;
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+            transform: translateY(-2px);
+        }
+
+        .messaging-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #25D366;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
+        }
+
+        .send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+
+        .response.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .response.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .tab.active {
+            background: #25D366;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #25D366;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            font-size: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: rotate(180deg);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .sessions-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="refresh-btn" onclick="refreshSessions()" title="Refresh Sessions">🔄</button>
+    
+    <div class="container">
+        <div class="header">
+            <h1>📱 Multi-Session WhatsApp API</h1>
+            <p>Manage multiple WhatsApp sessions and send messages</p>
+        </div>
+
+        <div id="sessionsContainer">
+            <!-- Sessions will be loaded here -->
+        </div>
+
+        <div class="messaging-section">
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('text')">📝 Text Message</div>
+                <div class="tab" onclick="switchTab('media')">📎 Media Message</div>
+            </div>
+
+            <!-- Text Message Tab -->
+            <div id="textTab" class="tab-content active">
+                <form id="textForm">
+                    <div class="form-group">
+                        <label for="sessionSelect">WhatsApp Session:</label>
+                        <select id="sessionSelect" required>
+                            <option value="">Auto-select (Round-robin)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phoneNumber">Phone Number:</label>
+                        <input type="tel" id="phoneNumber" placeholder="1234567890 or +911234567890" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="message">Message:</label>
+                        <textarea id="message" placeholder="Type your message here..." required></textarea>
+                    </div>
+                    
+                    <button type="submit" class="send-btn">Send Message 📤</button>
+                </form>
+            </div>
+
+            <!-- Media Message Tab -->
+            <div id="mediaTab" class="tab-content">
+                <form id="mediaForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="sessionSelectMedia">WhatsApp Session:</label>
+                        <select id="sessionSelectMedia" required>
+                            <option value="">Auto-select (Round-robin)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phoneNumberMedia">Phone Number:</label>
+                        <input type="tel" id="phoneNumberMedia" placeholder="1234567890 or +911234567890" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="mediaFile">Media File:</label>
+                        <input type="file" id="mediaFile" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,audio/*,video/*" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="caption">Caption (optional):</label>
+                        <textarea id="caption" placeholder="Add a caption for your media..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="send-btn">Send Media 📤</button>
+                </form>
+            </div>
+
+            <div id="response"></div>
+        </div>
+    </div>
+
+    <script>
+        let sessions = [];
+
+        // Load sessions on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshSessions();
+            
+            // Setup form handlers
+            document.getElementById('textForm').addEventListener('submit', sendTextMessage);
+            document.getElementById('mediaForm').addEventListener('submit', sendMediaMessage);
+            
+            // Auto-refresh sessions every 10 seconds
+            setInterval(refreshSessions, 10000);
+        });
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        async function refreshSessions() {
+            try {
+                const response = await fetch('/api/sessions');
+                const data = await response.json();
+                
+                if (data.success) {
+                    sessions = data.sessions;
+                    updateSessionsDisplay();
+                    updateSessionSelects();
+                }
+            } catch (error) {
+                console.error('Error fetching sessions:', error);
+            }
+        }
+
+        function updateSessionsDisplay() {
+            const container = document.getElementById('sessionsContainer');
+            
+            if (sessions.length === 0) {
+                container.innerHTML = '<div class="session-card">No sessions configured</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            container.className = 'sessions-grid';
+
+            sessions.forEach(session => {
+                const card = createSessionCard(session);
+                container.appendChild(card);
+            });
+        }
+
+        function createSessionCard(session) {
+            const card = document.createElement('div');
+            card.className = `session-card ${session.ready ? 'ready' : (session.authenticated ? 'pending' : 'error')}`;
+            
+            const statusClass = session.ready ? 'ready' : (session.authenticated ? 'pending' : 'error');
+            const statusText = session.ready ? 'Ready' : (session.authenticated ? 'Connecting' : 'Need QR Scan');
+            
+            card.innerHTML = `
+                <div class="session-header">
+                    <h3>${session.name}</h3>
+                    <span class="session-status status-${statusClass}">${statusText}</span>
+                </div>
+                <p>${session.description}</p>
+                
+                ${!session.ready && !session.authenticated ? `
+                    <div class="qr-container" id="qr-${session.id}">
+                        <p>Loading QR Code...</p>
+                    </div>
+                ` : ''}
+                
+                <div class="session-info">
+                    <div><strong>Session ID:</strong> ${session.id}</div>
+                    <div><strong>Phone:</strong> ${session.phone || 'Not connected'}</div>
+                    <div><strong>Status:</strong> ${session.ready ? 'Ready to send messages' : 'Not ready'}</div>
+                    ${session.connectedAt ? `<div><strong>Connected:</strong> ${new Date(session.connectedAt).toLocaleString()}</div>` : ''}
+                </div>
+                
+                <div class="session-actions">
+                    ${session.ready ? `
+                        <button class="btn btn-danger" onclick="logoutSession('${session.id}')">Logout</button>
+                    ` : `
+                        <button class="btn btn-primary" onclick="refreshQR('${session.id}')">Refresh QR</button>
+                    `}
+                </div>
+            `;
+            
+            // Load QR code if needed
+            if (!session.ready && !session.authenticated) {
+                loadQRCode(session.id);
+            }
+            
+            return card;
+        }
+
+        async function loadQRCode(sessionId) {
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}/qr`);
+                const data = await response.json();
+                
+                const qrContainer = document.getElementById(`qr-${sessionId}`);
+                if (qrContainer) {
+                    if (data.success) {
+                        qrContainer.innerHTML = `
+                            <img src="${data.qrCode}" alt="QR Code for ${sessionId}">
+                            <p>Scan with WhatsApp</p>
+                        `;
+                    } else {
+                        qrContainer.innerHTML = `<p>${data.message}</p>`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading QR code:', error);
+            }
+        }
+
+        function updateSessionSelects() {
+            const selects = ['sessionSelect', 'sessionSelectMedia'];
+            
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                const currentValue = select.value;
+                
+                // Clear existing options except the first one
+                select.innerHTML = '<option value="">Auto-select (Round-robin)</option>';
+                
+                // Add ready sessions
+                sessions.filter(s => s.ready).forEach(session => {
+                    const option = document.createElement('option');
+                    option.value = session.id;
+                    option.textContent = `${session.name} (${session.phone || session.id})`;
+                    select.appendChild(option);
+                });
+                
+                // Restore selection if still valid
+                if (currentValue) {
+                    select.value = currentValue;
+                }
+            });
+        }
+
+        async function refreshQR(sessionId) {
+            await loadQRCode(sessionId);
+        }
+
+        async function logoutSession(sessionId) {
+            if (!confirm('Are you sure you want to logout this session?')) return;
+            
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}/logout`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResponse('Session logged out successfully', 'success');
+                    refreshSessions();
+                } else {
+                    showResponse('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showResponse('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function sendTextMessage(event) {
+            event.preventDefault();
+            
+            const formData = {
+                number: document.getElementById('phoneNumber').value,
+                message: document.getElementById('message').value,
+                sessionId: document.getElementById('sessionSelect').value || undefined
+            };
+            
+            const submitBtn = event.target.querySelector('.send-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending...';
+            
+            try {
+                const response = await fetch('/api/send-message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResponse(`✅ Message sent successfully!
+Session: ${data.sessionName} (${data.fromPhone})
+To: ${data.to}
+Message ID: ${data.messageId}
+Timestamp: ${data.timestamp}`, 'success');
+                    
+                    // Clear form
+                    document.getElementById('textForm').reset();
+                } else {
+                    showResponse('❌ Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showResponse('❌ Network Error: ' + error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Send Message 📤';
+            }
+        }
+
+        async function sendMediaMessage(event) {
+            event.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('number', document.getElementById('phoneNumberMedia').value);
+            formData.append('media', document.getElementById('mediaFile').files[0]);
+            formData.append('caption', document.getElementById('caption').value);
+            
+            const sessionId = document.getElementById('sessionSelectMedia').value;
+            if (sessionId) {
+                formData.append('sessionId', sessionId);
+            }
+            
+            const submitBtn = event.target.querySelector('.send-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Uploading...';
+            
+            try {
+                const response = await fetch('/api/send-media', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResponse(`✅ Media sent successfully!
+Session: ${data.sessionName} (${data.fromPhone})
+To: ${data.to}
+File: ${data.fileName}
+Type: ${data.mediaType}
+Message ID: ${data.messageId}
+Timestamp: ${data.timestamp}`, 'success');
+                    
+                    // Clear form
+                    document.getElementById('mediaForm').reset();
+                } else {
+                    showResponse('❌ Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showResponse('❌ Network Error: ' + error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Send Media 📤';
+            }
+        }
+
+        function showResponse(message, type) {
+            const responseDiv = document.getElementById('response');
+            responseDiv.textContent = message;
+            responseDiv.className = `response ${type}`;
+            
+            // Auto-hide after 10 seconds
+            setTimeout(() => {
+                responseDiv.textContent = '';
+                responseDiv.className = 'response';
+            }, 10000);
+        }
+    </script>
+</body>
+</html>

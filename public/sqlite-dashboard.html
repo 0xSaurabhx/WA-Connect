@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQLite WhatsApp API Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card h3 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .sessions-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .session-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .session-item.ready {
+            border-left-color: #28a745;
+        }
+
+        .session-item.waiting {
+            border-left-color: #ffc107;
+        }
+
+        .session-item.error {
+            border-left-color: #dc3545;
+        }
+
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .session-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-ready {
+            background: #28a745;
+            color: white;
+        }
+
+        .status-waiting {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .status-error {
+            background: #dc3545;
+            color: white;
+        }
+
+        .status-inactive {
+            background: #6c757d;
+            color: white;
+        }
+
+        .qr-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        .qr-modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            position: relative;
+        }
+
+        .qr-modal img {
+            max-width: 300px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .close {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .response {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .response.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .response.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            font-size: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: rotate(180deg);
+        }
+
+        .messages-section {
+            grid-column: 1 / -1;
+            margin-top: 20px;
+        }
+
+        .messages-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .message-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="refresh-btn" onclick="refreshAll()" title="Refresh All Data">🔄</button>
+    
+    <div class="container">
+        <div class="header">
+            <h1>📊 SQLite WhatsApp API Dashboard</h1>
+            <p>Manage unlimited WhatsApp sessions with database persistence</p>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats will be loaded here -->
+        </div>
+
+        <div class="main-content">
+            <!-- Session Management Section -->
+            <div class="section">
+                <h2>📱 Session Management</h2>
+                
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('create')">Create Session</div>
+                    <div class="tab" onclick="switchTab('bulk')">Bulk Create</div>
+                </div>
+
+                <!-- Create Single Session -->
+                <div id="createTab" class="tab-content active">
+                    <form id="createSessionForm">
+                        <div class="form-group">
+                            <label for="sessionId">Session ID:</label>
+                            <input type="text" id="sessionId" placeholder="e.g., whatsapp1" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="sessionName">Session Name:</label>
+                            <input type="text" id="sessionName" placeholder="e.g., Primary WhatsApp" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="description">Description:</label>
+                            <input type="text" id="description" placeholder="Optional description">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Create & Initialize Session</button>
+                    </form>
+                </div>
+
+                <!-- Bulk Create Sessions -->
+                <div id="bulkTab" class="tab-content">
+                    <div class="form-group">
+                        <label for="bulkCount">Number of Sessions:</label>
+                        <input type="number" id="bulkCount" min="1" max="20" value="5" placeholder="5">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="bulkPrefix">Session ID Prefix:</label>
+                        <input type="text" id="bulkPrefix" value="wa" placeholder="wa">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="bulkNamePrefix">Session Name Prefix:</label>
+                        <input type="text" id="bulkNamePrefix" value="WhatsApp" placeholder="WhatsApp">
+                    </div>
+                    
+                    <button onclick="bulkCreateSessions()" class="btn btn-primary">Bulk Create Sessions</button>
+                </div>
+
+                <div id="sessionResponse" class="response"></div>
+            </div>
+
+            <!-- Messaging Section -->
+            <div class="section">
+                <h2>💬 Send Messages</h2>
+                
+                <div class="tabs">
+                    <div class="tab active" onclick="switchMessageTab('text')">Text Message</div>
+                    <div class="tab" onclick="switchMessageTab('media')">Media Message</div>
+                </div>
+
+                <!-- Text Message -->
+                <div id="textMessageTab" class="tab-content active">
+                    <form id="textMessageForm">
+                        <div class="form-group">
+                            <label for="messageSessionSelect">Session:</label>
+                            <select id="messageSessionSelect">
+                                <option value="">Auto-select (Round-robin)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="messagePhone">Phone Number:</label>
+                            <input type="tel" id="messagePhone" placeholder="1234567890 or +911234567890" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="messageText">Message:</label>
+                            <textarea id="messageText" rows="3" placeholder="Type your message here..." required></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">Send Text Message</button>
+                    </form>
+                </div>
+
+                <!-- Media Message -->
+                <div id="mediaMessageTab" class="tab-content">
+                    <form id="mediaMessageForm" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="mediaSessionSelect">Session:</label>
+                            <select id="mediaSessionSelect">
+                                <option value="">Auto-select (Round-robin)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="mediaPhone">Phone Number:</label>
+                            <input type="tel" id="mediaPhone" placeholder="1234567890 or +911234567890" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="mediaFile">Media File:</label>
+                            <input type="file" id="mediaFile" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,audio/*,video/*" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="mediaCaption">Caption:</label>
+                            <textarea id="mediaCaption" rows="2" placeholder="Optional caption..."></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">Send Media Message</button>
+                    </form>
+                </div>
+
+                <div id="messageResponse" class="response"></div>
+            </div>
+        </div>
+
+        <!-- Sessions List -->
+        <div class="section">
+            <h2>📋 Active Sessions</h2>
+            <div id="sessionsList" class="sessions-list">
+                <!-- Sessions will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Recent Messages -->
+        <div class="section messages-section">
+            <h2>📨 Recent Messages</h2>
+            <div id="messagesList" class="messages-list">
+                <!-- Messages will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qrModal" class="qr-modal">
+        <div class="qr-modal-content">
+            <span class="close" onclick="closeQRModal()">&times;</span>
+            <h3 id="qrTitle">Scan QR Code</h3>
+            <div id="qrContainer">
+                <p>Loading QR code...</p>
+            </div>
+            <p>Scan this QR code with WhatsApp on your phone</p>
+        </div>
+    </div>
+
+    <script>
+        let stats = {};
+        let sessions = [];
+        let messages = [];
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshAll();
+            
+            // Setup form handlers
+            document.getElementById('createSessionForm').addEventListener('submit', createSession);
+            document.getElementById('textMessageForm').addEventListener('submit', sendTextMessage);
+            document.getElementById('mediaMessageForm').addEventListener('submit', sendMediaMessage);
+            
+            // Auto-refresh every 10 seconds
+            setInterval(refreshAll, 10000);
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('#createTab, #bulkTab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.section .tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function switchMessageTab(tabName) {
+            document.querySelectorAll('#textMessageTab, #mediaMessageTab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.section .tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabName + 'MessageTab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        async function refreshAll() {
+            await Promise.all([
+                loadStats(),
+                loadSessions(),
+                loadMessages()
+            ]);
+            updateSessionSelects();
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    stats = data.stats;
+                    updateStatsDisplay();
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        async function loadSessions() {
+            try {
+                const response = await fetch('/api/sessions');
+                const data = await response.json();
+                
+                if (data.success) {
+                    sessions = data.sessions;
+                    updateSessionsDisplay();
+                }
+            } catch (error) {
+                console.error('Error loading sessions:', error);
+            }
+        }
+
+        async function loadMessages() {
+            try {
+                const response = await fetch('/api/messages?limit=20');
+                const data = await response.json();
+                
+                if (data.success) {
+                    messages = data.messages;
+                    updateMessagesDisplay();
+                }
+            } catch (error) {
+                console.error('Error loading messages:', error);
+            }
+        }
+
+        function updateStatsDisplay() {
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <h3>${stats.totalSessions}</h3>
+                    <p>Total Sessions</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${stats.readySessions}</h3>
+                    <p>Ready Sessions</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${stats.authenticatedSessions}</h3>
+                    <p>Authenticated</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${stats.totalMessages}</h3>
+                    <p>Total Messages</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${stats.activeClients}</h3>
+                    <p>Active Clients</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${(stats.databaseSize / 1024).toFixed(1)}KB</h3>
+                    <p>Database Size</p>
+                </div>
+            `;
+        }
+
+        function updateSessionsDisplay() {
+            const sessionsList = document.getElementById('sessionsList');
+            
+            if (sessions.length === 0) {
+                sessionsList.innerHTML = '<p>No sessions found. Create your first session above.</p>';
+                return;
+            }
+
+            sessionsList.innerHTML = sessions.map(session => {
+                const statusClass = session.ready ? 'ready' : 
+                                   session.authenticated ? 'waiting' : 
+                                   session.status === 'waiting_qr' ? 'waiting' : 'error';
+                
+                const statusText = session.ready ? 'Ready' : 
+                                  session.authenticated ? 'Connecting' : 
+                                  session.status === 'waiting_qr' ? 'Scan QR' : 
+                                  session.status || 'Inactive';
+
+                return `
+                    <div class="session-item ${statusClass}">
+                        <div class="session-header">
+                            <div>
+                                <strong>${session.name}</strong>
+                                <small>(${session.id})</small>
+                            </div>
+                            <span class="session-status status-${statusClass}">${statusText}</span>
+                        </div>
+                        <p>${session.description || 'No description'}</p>
+                        ${session.phone ? `<p><strong>Phone:</strong> +${session.phone}</p>` : ''}
+                        <p><strong>Created:</strong> ${new Date(session.created_at).toLocaleString()}</p>
+                        ${session.connected_at ? `<p><strong>Connected:</strong> ${new Date(session.connected_at).toLocaleString()}</p>` : ''}
+                        
+                        <div style="margin-top: 10px;">
+                            ${!session.ready && !session.authenticated ? `
+                                <button class="btn btn-warning" onclick="showQR('${session.id}', '${session.name}')">Show QR</button>
+                                <button class="btn btn-primary" onclick="initializeSession('${session.id}')">Initialize</button>
+                            ` : ''}
+                            ${session.ready ? `
+                                <button class="btn btn-danger" onclick="logoutSession('${session.id}')">Logout</button>
+                            ` : ''}
+                            <button class="btn btn-danger" onclick="deleteSession('${session.id}')">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateMessagesDisplay() {
+            const messagesList = document.getElementById('messagesList');
+            
+            if (messages.length === 0) {
+                messagesList.innerHTML = '<p>No messages found.</p>';
+                return;
+            }
+
+            messagesList.innerHTML = messages.map(msg => `
+                <div class="message-item">
+                    <strong>To:</strong> +${msg.to_number} | 
+                    <strong>Session:</strong> ${msg.session_id} | 
+                    <strong>Type:</strong> ${msg.media_type || 'text'}
+                    ${msg.content ? `<br><strong>Content:</strong> ${msg.content.substring(0, 100)}${msg.content.length > 100 ? '...' : ''}` : ''}
+                    ${msg.file_name ? `<br><strong>File:</strong> ${msg.file_name}` : ''}
+                    <br><small>${new Date(msg.timestamp).toLocaleString()}</small>
+                </div>
+            `).join('');
+        }
+
+        function updateSessionSelects() {
+            const selects = ['messageSessionSelect', 'mediaSessionSelect'];
+            
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                const currentValue = select.value;
+                
+                select.innerHTML = '<option value="">Auto-select (Round-robin)</option>';
+                
+                sessions.filter(s => s.ready).forEach(session => {
+                    const option = document.createElement('option');
+                    option.value = session.id;
+                    option.textContent = `${session.name} (+${session.phone || session.id})`;
+                    select.appendChild(option);
+                });
+                
+                if (currentValue) {
+                    select.value = currentValue;
+                }
+            });
+        }
+
+        async function createSession(event) {
+            event.preventDefault();
+            
+            const sessionId = document.getElementById('sessionId').value;
+            const sessionName = document.getElementById('sessionName').value;
+            const description = document.getElementById('description').value;
+            
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating...';
+            
+            try {
+                const response = await fetch('/api/sessions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sessionId,
+                        sessionName,
+                        description
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResponse('sessionResponse', '✅ Session created successfully! Initialize it to get QR code.', 'success');
+                    document.getElementById('createSessionForm').reset();
+                    await refreshAll();
+                } else {
+                    showResponse('sessionResponse', '❌ Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showResponse('sessionResponse', '❌ Network Error: ' + error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create & Initialize Session';
+            }
+        }
+
+        async function bulkCreateSessions() {
+            const count = parseInt(document.getElementById('bulkCount').value);
+            const prefix = document.getElementById('bulkPrefix').value;
+            const namePrefix = document.getElementById('bulkNamePrefix').value;
+            
+            if (!count || count <= 0) {
+                showResponse('sessionResponse', '❌ Please enter a valid count', 'error');
+                return;
+            }
+            
+            const sessions = [];
+            for (let i = 1; i <= count; i++) {
+                sessions.push({
+                    sessionId: `${prefix}${i}`,
+                    sessionName: `${namePrefix} ${i}`,
+                    description: `Bulk created session ${i}`
+                });
+            }
+            
+            try {
+                const response = await fetch('/api/sessions/bulk', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ sessions })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResponse('sessionResponse', `✅ ${data.message}`, 'success');
+                    await refreshAll();
+                } else {
+                    showResponse('sessionResponse', '❌ Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showResponse('sessionResponse', '❌ Network Error: ' + error.message, 'error');
+            }
+        }
+
+        async function showQR(sessionId, sessionName) {
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}/qr`);
+                const data = await response.json();
+                
+                document.getElementById('qrTitle').textContent = `QR Code for ${sessionName}`;
+                
+                if (data.success) {
+                    document.getElementById('qrContainer').innerHTML = `
+                        <img src="${data.qrCode}" alt="QR Code">
+                    `;
+                } else {
+                    document.getElementById('qrContainer').innerHTML = `
+                        <p>${data.message}</p>
+                        <button class="btn btn-primary" onclick="initializeSession('${sessionId}')">Initialize Session</button>
+                    `;
+                }
+                
+                document.getElementById('qrModal').style.display = 'block';
+                
+            } catch (error) {
+                alert('Error loading QR code: ' + error.message);
+            }
+        }
+
+        async function initializeSession(sessionId) {
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}/initialize`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Session initialization started. Check QR code in a moment.');
+                    setTimeout(() => refreshAll(), 2000);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Network Error: ' + error.message);
+            }
+        }
+
+        async function logoutSession(sessionId) {
+            if (!confirm('Are you sure you want to logout this session?')) return;
+            
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}/logout`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Session logged out successfully');
+                    await refreshAll();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Network Error: ' + error.message);
+            }
+        }
+
+        async function deleteSession(sessionId) {
+            if (!confirm('Are you sure you want to delete this session? This action cannot be undone.')) return;
+            
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Session deleted successfully');
+                    await refreshAll();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Network Error: ' + error.message);
+            }
+        }
+
+        async function sendTextMessage(event) {
+            event.preventDefault();
+            
+            const sessionId = document.getElementById('messageSessionSelect').value || undefined;
+            const to = document.getElementById('messagePhone').value;
+            const message = document.getElementById('messageText').value;
+            
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending...';
+            
+            try {
+                const response = await fetch('/api/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ to, message, sessionId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResponse('messageResponse', `✅ Message sent successfully via ${data.sessionName} (+${data.fromPhone})`, 'success');
+                    document.getElementById('textMessageForm').reset();
+                    await loadMessages();
+                } else {
+                    showResponse('messageResponse', '❌ Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showResponse('messageResponse', '❌ Network Error: ' + error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Send Text Message';
+            }
+        }
+
+        async function sendMediaMessage(event) {
+            event.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('to', document.getElementById('mediaPhone').value);
+            formData.append('media', document.getElementById('mediaFile').files[0]);
+            formData.append('caption', document.getElementById('mediaCaption').value);
+            
+            const sessionId = document.getElementById('mediaSessionSelect').value;
+            if (sessionId) {
+                formData.append('sessionId', sessionId);
+            }
+            
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Uploading...';
+            
+            try {
+                const response = await fetch('/api/send-media', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResponse('messageResponse', `✅ Media sent successfully via ${data.sessionName} (+${data.fromPhone})`, 'success');
+                    document.getElementById('mediaMessageForm').reset();
+                    await loadMessages();
+                } else {
+                    showResponse('messageResponse', '❌ Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showResponse('messageResponse', '❌ Network Error: ' + error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Send Media Message';
+            }
+        }
+
+        function showResponse(elementId, message, type) {
+            const responseDiv = document.getElementById(elementId);
+            responseDiv.textContent = message;
+            responseDiv.className = `response ${type}`;
+            
+            setTimeout(() => {
+                responseDiv.textContent = '';
+                responseDiv.className = 'response';
+            }, 10000);
+        }
+
+        function closeQRModal() {
+            document.getElementById('qrModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('qrModal');
+            if (event.target === modal) {
+                closeQRModal();
+            }
+        }
+    </script>
+</body>
+</html>
