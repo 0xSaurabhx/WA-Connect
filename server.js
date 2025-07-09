@@ -91,32 +91,39 @@ app.use(session({
     }
 }));
 
-// Authentication middleware
+// Authentication middleware for HTML dashboard only
 const requireAuth = (req, res, next) => {
     if (req.session && req.session.authenticated) {
         return next();
     } else {
-        if (req.path.startsWith('/api/')) {
-            return res.status(401).json({ 
-                success: false, 
-                error: 'Authentication required. Please login first.',
-                redirectTo: '/login'
-            });
-        } else {
-            return res.redirect('/login');
-        }
+        return res.redirect('/login');
     }
 };
 
-// Public routes (no authentication required)
-const publicRoutes = ['/login', '/api/auth/login', '/api/auth/logout'];
-
-// Apply authentication middleware to all routes except public ones
+// Apply authentication middleware only to HTML dashboard routes
+// API endpoints (/api/*) are public and don't require authentication
 app.use((req, res, next) => {
-    if (publicRoutes.includes(req.path) || req.path.startsWith('/login-assets/')) {
+    // Skip authentication for:
+    // 1. All API endpoints (/api/*)
+    // 2. Login page and assets
+    // 3. Static assets served from public folder that don't need auth
+    if (req.path.startsWith('/api/') || 
+        req.path === '/login' || 
+        req.path.startsWith('/login-assets/')) {
         return next();
     }
-    requireAuth(req, res, next);
+    
+    // For HTML dashboard routes, require authentication
+    // This includes: /, /index.html, and other dashboard pages
+    if (req.path === '/' || 
+        req.path.endsWith('.html') || 
+        req.path === '/dashboard' ||
+        (!req.path.includes('.') && req.path !== '/login')) {
+        return requireAuth(req, res, next);
+    }
+    
+    // Allow other static assets (CSS, JS, images, etc.)
+    return next();
 });
 
 app.use(express.static('public'));
@@ -387,8 +394,13 @@ const upload = multer({
 
 // API Routes
 
-// Health check
+// Dashboard route - serves the HTML dashboard
 app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// API Health check
+app.get('/api/status', (req, res) => {
     const sessions = dbQueries.getAllSessions.all();
     const readySessions = sessions.filter(s => s.ready === 1).length;
     
