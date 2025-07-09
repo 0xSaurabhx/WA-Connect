@@ -17,6 +17,8 @@ const mime = require('mime-types');
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
+const session = require('express-session');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const app = express();
@@ -67,9 +69,56 @@ db.exec(`
 
 console.log('📊 SQLite Database initialized successfully');
 
+// Authentication configuration
+const AUTH_CONFIG = {
+    username: 'ACT',
+    password: 'N8<$zydy5Q4KYwC]Zbxm_RWv',
+    sessionSecret: process.env.SESSION_SECRET || 'your-super-secret-key-change-this-in-production'
+};
+
 // Middleware
 app.use(express.json());
 app.use(cors());
+
+// Session middleware for authentication
+app.use(session({
+    secret: AUTH_CONFIG.sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: false, // Set to true if using HTTPS
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+}));
+
+// Authentication middleware
+const requireAuth = (req, res, next) => {
+    if (req.session && req.session.authenticated) {
+        return next();
+    } else {
+        if (req.path.startsWith('/api/')) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Authentication required. Please login first.',
+                redirectTo: '/login'
+            });
+        } else {
+            return res.redirect('/login');
+        }
+    }
+};
+
+// Public routes (no authentication required)
+const publicRoutes = ['/login', '/api/auth/login', '/api/auth/logout'];
+
+// Apply authentication middleware to all routes except public ones
+app.use((req, res, next) => {
+    if (publicRoutes.includes(req.path) || req.path.startsWith('/login-assets/')) {
+        return next();
+    }
+    requireAuth(req, res, next);
+});
+
 app.use(express.static('public'));
 
 // In-memory storage for active WhatsApp clients
@@ -352,6 +401,267 @@ app.get('/', (req, res) => {
         dbPath: dbPath
     });
 });
+
+// =============================================================================
+// AUTHENTICATION ROUTES
+// =============================================================================
+
+// Login page route
+app.get('/login', (req, res) => {
+    if (req.session && req.session.authenticated) {
+        return res.redirect('/');
+    }
+    
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Login - WhatsApp API</title>
+            <style>
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                
+                .login-container {
+                    background: rgba(255, 255, 255, 0.95);
+                    backdrop-filter: blur(10px);
+                    border-radius: 20px;
+                    padding: 40px;
+                    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+                    width: 100%;
+                    max-width: 400px;
+                    text-align: center;
+                }
+                
+                .login-header {
+                    margin-bottom: 30px;
+                }
+                
+                .login-header h1 {
+                    color: #667eea;
+                    font-size: 2.5em;
+                    margin-bottom: 10px;
+                }
+                
+                .login-header p {
+                    color: #666;
+                    font-size: 1.1em;
+                }
+                
+                .form-group {
+                    margin-bottom: 20px;
+                    text-align: left;
+                }
+                
+                .form-group label {
+                    display: block;
+                    margin-bottom: 8px;
+                    font-weight: 600;
+                    color: #333;
+                }
+                
+                .form-group input {
+                    width: 100%;
+                    padding: 15px;
+                    border: 2px solid #e0e0e0;
+                    border-radius: 10px;
+                    font-size: 16px;
+                    transition: border-color 0.3s ease;
+                }
+                
+                .form-group input:focus {
+                    outline: none;
+                    border-color: #667eea;
+                }
+                
+                .login-btn {
+                    width: 100%;
+                    padding: 15px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }
+                
+                .login-btn:hover {
+                    opacity: 0.9;
+                    transform: translateY(-2px);
+                }
+                
+                .error-message {
+                    background: #f8d7da;
+                    border: 1px solid #f5c6cb;
+                    color: #721c24;
+                    padding: 12px;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                    font-size: 14px;
+                }
+                
+                .footer {
+                    margin-top: 30px;
+                    padding-top: 20px;
+                    border-top: 1px solid #e0e0e0;
+                    color: #666;
+                    font-size: 14px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="login-container">
+                <div class="login-header">
+                    <h1>🔐 Login</h1>
+                    <p>WhatsApp API Dashboard</p>
+                </div>
+                
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+                
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">Username:</label>
+                        <input type="text" id="username" name="username" required autocomplete="username">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" name="password" required autocomplete="current-password">
+                    </div>
+                    
+                    <button type="submit" class="login-btn">Login</button>
+                </form>
+                
+                <div class="footer">
+                    <p>Secure access to WhatsApp API management</p>
+                </div>
+            </div>
+            
+            <script>
+                document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    const username = document.getElementById('username').value;
+                    const password = document.getElementById('password').value;
+                    const errorDiv = document.getElementById('errorMessage');
+                    const submitBtn = e.target.querySelector('button[type="submit"]');
+                    
+                    // Reset error message
+                    errorDiv.style.display = 'none';
+                    
+                    // Disable submit button
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Logging in...';
+                    
+                    try {
+                        const response = await fetch('/api/auth/login', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ username, password })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            window.location.href = '/';
+                        } else {
+                            errorDiv.textContent = data.error || 'Login failed';
+                            errorDiv.style.display = 'block';
+                        }
+                    } catch (error) {
+                        errorDiv.textContent = 'Network error. Please try again.';
+                        errorDiv.style.display = 'block';
+                    } finally {
+                        // Re-enable submit button
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Login';
+                    }
+                });
+                
+                // Focus on username field
+                document.getElementById('username').focus();
+            </script>
+        </body>
+        </html>
+    `);
+});
+
+// Login API endpoint
+app.post('/api/auth/login', (req, res) => {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+        return res.status(400).json({
+            success: false,
+            error: 'Username and password are required'
+        });
+    }
+    
+    if (username === AUTH_CONFIG.username && password === AUTH_CONFIG.password) {
+        req.session.authenticated = true;
+        req.session.username = username;
+        req.session.loginTime = new Date().toISOString();
+        
+        res.json({
+            success: true,
+            message: 'Login successful',
+            user: username
+        });
+    } else {
+        res.status(401).json({
+            success: false,
+            error: 'Invalid username or password'
+        });
+    }
+});
+
+// Logout API endpoint
+app.post('/api/auth/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
+                error: 'Could not log out'
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Logged out successfully'
+        });
+    });
+});
+
+// Check authentication status
+app.get('/api/auth/status', (req, res) => {
+    res.json({
+        success: true,
+        authenticated: !!(req.session && req.session.authenticated),
+        user: req.session?.username || null,
+        loginTime: req.session?.loginTime || null
+    });
+});
+
+// =============================================================================
+// WHATSAPP API ROUTES
+// =============================================================================
 
 // Get all sessions
 app.get('/api/sessions', (req, res) => {

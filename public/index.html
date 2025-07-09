@@ -330,6 +330,43 @@
             transform: rotate(180deg);
         }
 
+        .logout-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .header {
+            position: relative;
+        }
+
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(102, 126, 234, 0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
         .messages-section {
             grid-column: 1 / -1;
             margin-top: 20px;
@@ -369,9 +406,13 @@
 </head>
 <body>
     <button class="refresh-btn" onclick="refreshAll()" title="Refresh All Data">🔄</button>
+    <button class="logout-btn" onclick="logout()" title="Logout">🚪 Logout</button>
     
     <div class="container">
         <div class="header">
+            <div class="user-info" id="userInfo">
+                👤 Loading...
+            </div>
             <h1>📊 SQLite WhatsApp API Dashboard</h1>
             <p>Manage unlimited WhatsApp sessions with database persistence</p>
         </div>
@@ -535,8 +576,64 @@
         let sessions = [];
         let messages = [];
 
+        // Authentication functions
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/api/auth/status');
+                const data = await response.json();
+                
+                if (data.success && data.authenticated) {
+                    document.getElementById('userInfo').textContent = `👤 ${data.user}`;
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                window.location.href = '/login';
+            }
+        }
+
+        async function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                try {
+                    const response = await fetch('/api/auth/logout', {
+                        method: 'POST'
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        window.location.href = '/login';
+                    } else {
+                        alert('Logout failed: ' + data.error);
+                    }
+                } catch (error) {
+                    alert('Logout failed: ' + error.message);
+                }
+            }
+        }
+
+        // Enhanced error handling for API calls
+        async function makeAuthenticatedRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, options);
+                
+                if (response.status === 401) {
+                    alert('Session expired. Please login again.');
+                    window.location.href = '/login';
+                    return null;
+                }
+                
+                return response;
+            } catch (error) {
+                console.error('Request failed:', error);
+                throw error;
+            }
+        }
+
         // Load data on page load
         document.addEventListener('DOMContentLoaded', function() {
+            checkAuthStatus();
             refreshAll();
             
             // Setup form handlers
@@ -583,7 +680,9 @@
 
         async function loadStats() {
             try {
-                const response = await fetch('/api/stats');
+                const response = await makeAuthenticatedRequest('/api/stats');
+                if (!response) return;
+                
                 const data = await response.json();
                 
                 if (data.success) {
@@ -597,7 +696,9 @@
 
         async function loadSessions() {
             try {
-                const response = await fetch('/api/sessions');
+                const response = await makeAuthenticatedRequest('/api/sessions');
+                if (!response) return;
+                
                 const data = await response.json();
                 
                 if (data.success) {
@@ -611,7 +712,9 @@
 
         async function loadMessages() {
             try {
-                const response = await fetch('/api/messages?limit=20');
+                const response = await makeAuthenticatedRequest('/api/messages?limit=20');
+                if (!response) return;
+                
                 const data = await response.json();
                 
                 if (data.success) {
@@ -754,7 +857,7 @@
             submitBtn.textContent = 'Creating...';
             
             try {
-                const response = await fetch('/api/sessions', {
+                const response = await makeAuthenticatedRequest('/api/sessions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -766,6 +869,7 @@
                     })
                 });
                 
+                if (!response) return;
                 const data = await response.json();
                 
                 if (data.success) {
@@ -803,7 +907,7 @@
             }
             
             try {
-                const response = await fetch('/api/sessions/bulk', {
+                const response = await makeAuthenticatedRequest('/api/sessions/bulk', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -811,6 +915,7 @@
                     body: JSON.stringify({ sessions })
                 });
                 
+                if (!response) return;
                 const data = await response.json();
                 
                 if (data.success) {
@@ -826,7 +931,9 @@
 
         async function showQR(sessionId, sessionName) {
             try {
-                const response = await fetch(`/api/sessions/${sessionId}/qr`);
+                const response = await makeAuthenticatedRequest(`/api/sessions/${sessionId}/qr`);
+                if (!response) return;
+                
                 const data = await response.json();
                 
                 document.getElementById('qrTitle').textContent = `QR Code for ${sessionName}`;
@@ -851,10 +958,11 @@
 
         async function initializeSession(sessionId) {
             try {
-                const response = await fetch(`/api/sessions/${sessionId}/initialize`, {
+                const response = await makeAuthenticatedRequest(`/api/sessions/${sessionId}/initialize`, {
                     method: 'POST'
                 });
                 
+                if (!response) return;
                 const data = await response.json();
                 
                 if (data.success) {
@@ -872,10 +980,11 @@
             if (!confirm('Are you sure you want to logout this session?')) return;
             
             try {
-                const response = await fetch(`/api/sessions/${sessionId}/logout`, {
+                const response = await makeAuthenticatedRequest(`/api/sessions/${sessionId}/logout`, {
                     method: 'POST'
                 });
                 
+                if (!response) return;
                 const data = await response.json();
                 
                 if (data.success) {
@@ -893,10 +1002,11 @@
             if (!confirm('Are you sure you want to delete this session? This action cannot be undone.')) return;
             
             try {
-                const response = await fetch(`/api/sessions/${sessionId}`, {
+                const response = await makeAuthenticatedRequest(`/api/sessions/${sessionId}`, {
                     method: 'DELETE'
                 });
                 
+                if (!response) return;
                 const data = await response.json();
                 
                 if (data.success) {
@@ -922,7 +1032,7 @@
             submitBtn.textContent = 'Sending...';
             
             try {
-                const response = await fetch('/api/send', {
+                const response = await makeAuthenticatedRequest('/api/send', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -930,6 +1040,7 @@
                     body: JSON.stringify({ to, message, sessionId })
                 });
                 
+                if (!response) return;
                 const data = await response.json();
                 
                 if (data.success) {
@@ -965,11 +1076,12 @@
             submitBtn.textContent = 'Uploading...';
             
             try {
-                const response = await fetch('/api/send-media', {
+                const response = await makeAuthenticatedRequest('/api/send-media', {
                     method: 'POST',
                     body: formData
                 });
                 
+                if (!response) return;
                 const data = await response.json();
                 
                 if (data.success) {

@@ -4,6 +4,7 @@ A robust, production-ready multi-session WhatsApp API server built with Express.
 
 ## 🚀 Features
 
+- **🔐 Secure Authentication**: Login system with session management
 - **Multi-Session Support**: Manage unlimited WhatsApp numbers
 - **Dynamic Session Management**: Add/remove sessions via API
 - **QR Code Authentication**: Web-based QR scanning
@@ -95,11 +96,74 @@ http://localhost:3000
 ```
 
 ### Authentication
-No authentication required for local deployment. For production, implement authentication middleware.
+**Required for all dashboard and API access:**
+- **Username**: ACT
+- **Password**: N8<$zydy5Q4KYwC]Zbxm_RWv
+
+The system uses session-based authentication. Login via the web interface at `/login` or programmatically via the API.
 
 ---
 
-## 🔗 Session Management APIs
+## � Authentication APIs
+
+### 1. Login
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "username": "ACT",
+  "password": "N8<$zydy5Q4KYwC]Zbxm_RWv"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "user": "ACT"
+}
+```
+
+### 2. Logout
+```http
+POST /api/auth/logout
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
+### 3. Check Authentication Status
+```http
+GET /api/auth/status
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "authenticated": true,
+  "user": "ACT",
+  "loginTime": "2025-07-08T10:00:00.000Z"
+}
+```
+
+### 4. Login Page
+```http
+GET /login
+```
+
+Access the login page in your browser to authenticate via the web interface.
+
+---
+
+## �🔗 Session Management APIs
 
 ### 1. Get All Sessions
 ```http
@@ -453,7 +517,13 @@ Access the web dashboard at:
 - Multi Server: `http://localhost:3002`
 - Original Server: `http://localhost:3000`
 
+**Login Required:**
+- **Username**: ACT
+- **Password**: N8<$zydy5Q4KYwC]Zbxm_RWv
+
 ### Dashboard Features:
+- **🔐 Secure Login**: Session-based authentication
+- **👤 User Management**: Current user display and logout
 - **Session Management**: Create, initialize, and delete sessions
 - **QR Code Display**: Modal popup for easy scanning
 - **Message Sending**: Text and media message forms
@@ -543,8 +613,12 @@ WHATSAPP_SESSION_PATH=./.wwebjs_auth
 WHATSAPP_CACHE_PATH=./.wwebjs_cache
 
 # Security (for production)
-SESSION_SECRET=your-secret-key-here
+SESSION_SECRET=your-super-secret-key-change-this-in-production
 API_KEY=your-api-key-here
+
+# Authentication (pre-configured)
+AUTH_USERNAME=ACT
+AUTH_PASSWORD=N8<$zydy5Q4KYwC]Zbxm_RWv
 
 # CORS Settings
 CORS_ORIGIN=*
@@ -644,7 +718,20 @@ All API responses follow this standard format:
 
 ## 🔐 Security Considerations
 
-### For Production Use:
+### Built-in Authentication System
+
+The system includes a secure login system with the following credentials:
+- **Username**: ACT  
+- **Password**: N8<$zydy5Q4KYwC]Zbxm_RWv
+
+**Important Security Notes:**
+- Change the `SESSION_SECRET` in production
+- Sessions expire after 24 hours of inactivity
+- All API endpoints require authentication
+- Use HTTPS in production to protect credentials
+- Consider changing default credentials for production use
+
+### For Additional Production Security:
 
 1. **Enable Authentication**:
 ```javascript
